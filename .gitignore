@@ -1,0 +1,7 @@
+models/
+onnx_python/
+processed/
+tif_data/
+output.png
+.vscode/
+src/inference.exe
