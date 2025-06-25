@@ -32,7 +32,7 @@ This example utilizes custom segmentation model!
 By executing the following command we compile the script and get an exe file that can be run on a QNX system
 
 ```shell
-qcc -Vgcc_ntoaarch64le -o src/inference src/inference.cpp -I/home/user/ort_qnx/onnxruntime/include -L/home/user/ort_qnx/onnxruntime/cmake/build -lonnxruntime -Wl,-rpath,/home/user/ort_qnx/onnxruntime/cmake/build
+qcc -Vgcc_ntoaarch64le -o src/inference src/inference.cpp src/lodepng.cpp -I/home/user/ort_qnx/onnxruntime/include -L/home/user/ort_qnx/onnxruntime/cmake/build -lonnxruntime -Wl,-rpath,/home/user/ort_qnx/onnxruntime/cmake/build
 ```
 
 Note: specify the correct path to the ONNX header for correct compilation
