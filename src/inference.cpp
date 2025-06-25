@@ -16,6 +16,8 @@
 #include <dirent.h>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+
 #include "lodepng.h"
 
 std::vector<float> read_png_as_float(const std::string &filename, unsigned &width, unsigned &height) {
@@ -32,13 +34,10 @@ std::vector<float> read_png_as_float(const std::string &filename, unsigned &widt
     std::vector<float> result;
     result.reserve(image.size());
 
-    std::cout << image.size() << std::endl;
-
     for (size_t i = 0; i < image.size() - 4; i=i+4) {
         result.push_back(image[i] / 255.0f);
-        // std::cout << image[i] / 255.0f << std::endl;
     }
-    // 0.6549, 0.6471, 0.6353
+
     return result;
 }
 
@@ -46,10 +45,8 @@ float sigmoid(float x) {
     return 1.0f / (1.0f + std::exp(-x));
 }
 
-void save_grayscale_png_from_float(float* data, size_t width, size_t height, const std::string& filename, bool normalize = true) {
+void save_grayscale_png_from_float(float* data, size_t width, size_t height, const std::string& filename, float threshold, bool normalize = true) {
     std::vector<unsigned char> image(width * height);
-
-    float threshold = 0.2820f;
 
     for (size_t i = 0; i < width * height; ++i) {
         float val = sigmoid(data[i]);
@@ -59,6 +56,7 @@ void save_grayscale_png_from_float(float* data, size_t width, size_t height, con
         } else {
             val = 0.0;
         }
+
         if (normalize)
             val *= 255.0f;
         val = std::max(0.0f, std::min(val, 255.0f));  // manual clamp
@@ -103,11 +101,12 @@ std::vector<float> read_all_pngs_in_folder(const std::string &folder_path) {
 }
 
 
-void run_inference(float* input_data) {
+void run_inference(float* input_data, const std::string &model_path, float threshold) {
     Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "ONNX_Runtime");
     Ort::SessionOptions session_options;
     session_options.SetIntraOpNumThreads(1);
-    Ort::Session session(env, "models/SatUNet.onnx", session_options);
+    std::string model = "./models/"+model_path;
+    Ort::Session session(env, model.c_str(), session_options);
     Ort::AllocatorWithDefaultOptions allocator;
 
     auto input_type_info = session.GetInputTypeInfo(0);
@@ -145,45 +144,53 @@ void run_inference(float* input_data) {
     }
     std::cout << "]\n";
 
-    // std::cout << "Output values:\n";
-    // for (size_t i = 0; i < output_size; ++i) {
-    //     std::cout << results[i] << " ";
-    // }
-    // std::cout << std::endl;
-
     size_t width = output_shape.back();
     size_t height = output_shape[output_shape.size() - 2];
 
-    std::string full_output = "output.png";
-    save_grayscale_png_from_float(results, width, height, full_output);
+    std::string full_output = "./results/"+model_path+"_t_"+std::to_string(threshold)+"_onnx_cpp.png";
+
+    save_grayscale_png_from_float(results, width, height, full_output, threshold);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     try {
-        // std::string filename = "blue_KS001a75MI_011_104";  // or full path
-        // std::string full_filename = "processed" + filename + ".png";
-
-        // unsigned width, height;
-        // std::vector<float> image_data = read_png_as_float(full_filename, width, height);
-
-        std::string folder = "processed";
-        std::vector<float> image_data = read_all_pngs_in_folder(folder);
-
-        // if (!image_data.empty()) {
-        //     std::cout << "Loaded image: " << width << "x" << height << " RGBA (float)\n";
-
-        //     // Example pixel access:
-        //     int x = 50, y = 5, c = 0;
-        //     std::cout << "Image size = " << image_data.size() << std::endl;
-        //     float pixel_val = image_data[4 * (y * width + x) + c];
-        //     std::cout << "Pixel (" << x << "," << y << ") channel " << c << " = " << pixel_val << "\n";
-        // }
-
-        run_inference(image_data.data());
+        if (argc < 3) {
+            std::cerr << "Usage: " << argv[0] << " <input_folder> <model_path> [threshold]" << std::endl;
+            return 1;
         }
-    catch (const std::exception& e) {
+
+        std::string input_folder = argv[1];
+        std::string model_path = std::string(argv[2]);
+
+        float threshold = 0.5f;  // default
+
+        if (argc >= 4) {
+            char* end;
+            threshold = std::strtof(argv[3], &end);
+            if (*end != '\0') {
+                std::cerr << "Invalid threshold value: " << argv[3] << std::endl;
+                return 1;
+            }
+        }
+
+        std::cout << "Input folder: " << input_folder << "\n";
+        std::cout << "Model path: " << model_path << "\n";
+        std::cout << "Threshold: " << threshold << "\n";
+
+        std::vector<float> image_data = read_all_pngs_in_folder(input_folder);
+
+        if (!image_data.empty()) {
+            run_inference(image_data.data(), model_path, threshold);
+        } else {
+            std::cerr << "No image data found in folder: " << input_folder << std::endl;
+            return 1;
+        }
+
+    } catch (const std::exception& e) {
         std::cerr << "Fatal error: " << e.what() << std::endl;
         return 1;
     }
+
     return 0;
 }
+

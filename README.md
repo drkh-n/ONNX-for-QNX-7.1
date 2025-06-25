@@ -3,6 +3,8 @@
 
 This repository describes the steps to run a pre-trained PyTorch model on QNX Real-Time OS using a port of ONNX Runtime. ONNX Runtime is a tool that allows running inference of models created on any ML framework. We are not limited to PyTorch only!
 
+This example utilizes custom segmentation model!
+
 ## Installation
 
 1. Install Ubuntu >= 22.04.6 LTS via WSL (Windows Subsystem for Linux)
@@ -49,6 +51,14 @@ export LD_LIBRARY_PATH=/mnt/c/Users/user/Downloads/onnxruntime-linux-x64-1.22.0/
 ```shell
 g++ -o src/inference src/inference.cpp src/lodepng.cpp -I/mnt/c/Users/user/Downloads/onnxruntime-linux-x64-1.22.0/include     -L/mnt/c/Users/user/Downloads/onnxruntime-linux-x64-1.22.0/lib     -lonnxruntime  -Wl,-rpath,/mnt/c/Users/Downloads/onnxruntime-linux-x64-1.22.0/lib
 ```
+
+Example usage: <input_folder> <model_path> [threshold], where default threshold = 0.5f
+
+```shell
+./src/inference ./processed model_187_0.9326.onnx 0.6
+```
+
+Note: model will be looked in ./models/
 
 ## Copying Required Libraries to SD Card
 
